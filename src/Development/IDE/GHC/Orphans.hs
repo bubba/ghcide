@@ -70,3 +70,9 @@ instance Show HieFile where
 
 instance NFData HieFile where
     rnf = rwhnf
+
+instance NFData a => NFData (IdentifierDetails a) where
+    rnf (IdentifierDetails a b) = rnf a `seq` rnf (length b)
+
+instance NFData RealSrcSpan where
+    rnf = rwhnf

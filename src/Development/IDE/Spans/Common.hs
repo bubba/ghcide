@@ -3,8 +3,6 @@
 
 module Development.IDE.Spans.Common (
   showGhc
-, listifyAllSpans
-, listifyAllSpans'
 , safeTyThingId
 #ifndef GHC_LIB
 , safeTyThingType
@@ -13,12 +11,12 @@ module Development.IDE.Spans.Common (
 , emptySpanDoc
 , spanDocToMarkdown
 , spanDocToMarkdownForTest
+, DocMap
 ) where
 
-import Data.Data
-import qualified Data.Generics
 import qualified Data.Text as T
 import Data.List.Extra
+import Data.Map (Map)
 
 import GHC
 import Outputable
@@ -32,20 +30,10 @@ import Var
 import qualified Documentation.Haddock.Parser as H
 import qualified Documentation.Haddock.Types as H
 
+type DocMap = Map Name SpanDoc
+
 showGhc :: Outputable a => a -> String
 showGhc = showPpr unsafeGlobalDynFlags
-
--- | Get ALL source spans in the source.
-listifyAllSpans :: (Typeable a, Data m) => m -> [Located a]
-listifyAllSpans tcs =
-  Data.Generics.listify p tcs
-  where p (L spn _) = isGoodSrcSpan spn
--- This is a version of `listifyAllSpans` specialized on picking out
--- patterns.  It comes about since GHC now defines `type LPat p = Pat
--- p` (no top-level locations).
-listifyAllSpans' :: Typeable a
-                   => TypecheckedSource -> [Pat a]
-listifyAllSpans' tcs = Data.Generics.listify (const True) tcs
 
 #ifndef GHC_LIB
 -- From haskell-ide-engine/src/Haskell/Ide/Engine/Support/HieExtras.hs
