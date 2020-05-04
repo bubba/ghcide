@@ -61,7 +61,6 @@ import           HscMain                        (hscInteractive, hscSimplify)
 import           LoadIface                      (readIface)
 import qualified Maybes
 import           MkIface
-import           NameCache
 import           StringBuffer                   as SB
 import           TcRnMonad (initIfaceLoad, tcg_th_coreplugins)
 import           TcIface                        (typecheckIface)
