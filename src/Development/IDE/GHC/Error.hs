@@ -12,7 +12,10 @@ module Development.IDE.GHC.Error
 
   -- * utilities working with spans
   , srcSpanToLocation
+  , srcSpanToLocationMaybe
   , srcSpanToRange
+  , srcSpanToRangeMaybe
+  , realSrcSpanToRange
   , srcSpanToFilename
   , zeroSpan
   , realSpan
@@ -68,6 +71,10 @@ srcSpanToRange :: SrcSpan -> Range
 srcSpanToRange (UnhelpfulSpan _)  = noRange
 srcSpanToRange (RealSrcSpan real) = realSrcSpanToRange real
 
+srcSpanToRangeMaybe :: SrcSpan -> Maybe Range
+srcSpanToRangeMaybe (UnhelpfulSpan _)  = Nothing
+srcSpanToRangeMaybe (RealSrcSpan real) = Just $ realSrcSpanToRange real
+
 realSrcSpanToRange :: RealSrcSpan -> Range
 realSrcSpanToRange real =
   Range (Position (srcSpanStartLine real - 1) (srcSpanStartCol real - 1))
@@ -83,6 +90,10 @@ srcSpanToLocation :: SrcSpan -> Location
 srcSpanToLocation src =
   -- important that the URI's we produce have been properly normalized, otherwise they point at weird places in VS Code
   Location (fromNormalizedUri $ filePathToUri' $ toNormalizedFilePath' $ srcSpanToFilename src) (srcSpanToRange src)
+
+srcSpanToLocationMaybe :: SrcSpan -> Maybe Location
+srcSpanToLocationMaybe (UnhelpfulSpan _) = Nothing
+srcSpanToLocationMaybe src = Just $ srcSpanToLocation src
 
 isInsideSrcSpan :: Position -> SrcSpan -> Bool
 p `isInsideSrcSpan` r = sp <= p && p <= ep
