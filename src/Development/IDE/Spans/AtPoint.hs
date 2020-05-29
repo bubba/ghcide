@@ -40,6 +40,7 @@ import qualified Data.Array as A
 
 import IfaceType
 import Data.Either
+import Data.List.Extra (dropEnd)
 
 documentHighlight
   :: Monad m
@@ -93,8 +94,12 @@ atPoint IdeOptions{} hf dm pos = listToMaybe $ pointCommand hf pos hoverInfo
   where
     -- Hover info for values/data
     hoverInfo ast =
-      (Just range, prettyNames ++ map wrapHaskell prettyTypes)
+      (Just range, prettyNames ++ pTypes)
       where
+        pTypes
+          | length names == 1 = dropEnd 1 $ map wrapHaskell prettyTypes
+          | otherwise = map wrapHaskell prettyTypes
+
         range = realSrcSpanToRange $ nodeSpan ast
 
         wrapHaskell x = "\n```haskell\n"<>x<>"\n```\n"
