@@ -445,7 +445,7 @@ getHieFileRule =
 getDocMapRule :: Rules ()
 getDocMapRule =
     define $ \GetDocMap file -> do
-      tc <- tmrModule <$> use_ TypeCheck file
+      hmi <- hirModIface <$> use_ GetModIface file
       hsc <- hscEnv <$> use_ GhcSession file
       HFR _ rf <- use_ GetHieFile file
 
@@ -462,7 +462,7 @@ getDocMapRule =
 
       ifaces <- uses_ GetModIface tdeps
 
-      docMap <- liftIO $ evalGhcEnv hsc $ mkDocMap parsedDeps rf tc (map hirModIface ifaces)
+      docMap <- liftIO $ evalGhcEnv hsc $ mkDocMap parsedDeps rf hmi (map hirModIface ifaces)
       return ([],Just $ PDocMap docMap)
 
 -- Typechecks a module.
