@@ -642,20 +642,23 @@ getModSummaryRule = define $ \GetModSummary f -> do
     return $ either (,Nothing) (([], ) . Just) modS
 
 getModIfaceRule :: Rules ()
-getModIfaceRule = define $ \GetModIface f -> do
+getModIfaceRule = defineEarlyCutoff $ \GetModIface f -> do
     fileOfInterest <- use_ IsFileOfInterest f
     let useHiFile =
           -- Never load interface files for files of interest
           not fileOfInterest
     mbHiFile <- if useHiFile then use GetModIfaceFromDisk f else return Nothing
     case mbHiFile of
-        Just x ->
-            return ([], Just x)
+        Just x -> do
+            let hash = fingerprintToBS $ getModuleHash $ hirModIface x
+            return (Just hash,([], Just x))
         Nothing
           | fileOfInterest -> do
             -- For files of interest only, create a Shake dependency on typecheck
             tmr <- use TypeCheck f
-            return ([], extract tmr)
+            let !res = extract tmr
+                !hash = fingerprintToBS . getModuleHash . hirModIface <$> res
+            return (hash,([], res))
           | otherwise -> do
             -- the interface file does not exist or is out of date.
             -- Invoke typechecking directly to update it without incurring a dependency
@@ -676,12 +679,13 @@ getModIfaceRule = define $ \GetModIface f -> do
                     (_, (diagsNoHaddock, mb_pm)) <- liftIO $ getParsedModuleDefinition hsc opt comp_pkgs f contents
                     return (mergeParseErrorsHaddock diagsNoHaddock diags, mb_pm)
             case mb_pm of
-                Nothing -> return (diags, Nothing)
+                Nothing -> return (Nothing,(diags, Nothing))
                 Just pm -> do
                     (diags', tmr) <- typeCheckRuleDefinition f pm DoGenerateInterfaceFiles
                     -- Bang pattern is important to avoid leaking 'tmr'
                     let !res = extract tmr
-                    return (diags <> diags', res)
+                        !hash = fingerprintToBS . getModuleHash . hirModIface <$> res
+                    return (hash,(diags <> diags', res))
     where
       extract Nothing = Nothing
       extract (Just tmr) =
