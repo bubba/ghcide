@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 #include "ghc-api-version.h"
 
-module Development.IDE.Plugin.Completions(plugin) where
+module Development.IDE.Plugin.Completions(plugin,getCompletionsLSP) where
 
 import Control.Applicative
 import Language.Haskell.LSP.Messages
