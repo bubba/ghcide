@@ -186,7 +186,7 @@ getIdeGlobalState :: forall a . IsIdeGlobal a => IdeState -> IO a
 getIdeGlobalState = getIdeGlobalExtras . shakeExtras
 
 
- -- | The state of the all values.
+-- | The state of the all values.
 type Values = HMap.HashMap (NormalizedFilePath, Key) (Value Dynamic)
 
 -- | Key type
