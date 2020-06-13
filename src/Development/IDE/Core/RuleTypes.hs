@@ -46,6 +46,8 @@ type instance RuleResult GetDependencyInformation = DependencyInformation
 -- This rule is also responsible for calling ReportImportCycles for each file in the transitive closure.
 type instance RuleResult GetDependencies = TransitiveDependencies
 
+type instance RuleResult GetModuleGraph = DependencyInformation
+
 -- | Contains the typechecked module and the OrigNameCache entry for
 -- that module.
 data TcModuleResult = TcModuleResult
@@ -146,6 +148,12 @@ data GetDependencyInformation = GetDependencyInformation
 instance Hashable GetDependencyInformation
 instance NFData   GetDependencyInformation
 instance Binary   GetDependencyInformation
+
+data GetModuleGraph = GetModuleGraph
+    deriving (Eq, Show, Typeable, Generic)
+instance Hashable GetModuleGraph
+instance NFData   GetModuleGraph
+instance Binary   GetModuleGraph
 
 data ReportImportCycles = ReportImportCycles
     deriving (Eq, Show, Typeable, Generic)

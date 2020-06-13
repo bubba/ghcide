@@ -43,11 +43,12 @@ module Development.IDE.Core.Shake(
     getIdeOptionsIO,
     GlobalIdeOptions(..),
     garbageCollect,
+    knownFiles,
     setPriority,
     sendEvent,
     ideLogger,
     actionLogger,
-    FileVersion(..), modificationTime,
+    FileVersion(..), modificationTime, newerFileVersion,
     Priority(..),
     updatePositionMapping,
     deleteValue,
@@ -63,6 +64,7 @@ import           Development.Shake.Database
 import           Development.Shake.Classes
 import           Development.Shake.Rule
 import qualified Data.HashMap.Strict as HMap
+import qualified Data.HashSet as HSet
 import qualified Data.Map.Strict as Map
 import qualified Data.ByteString.Char8 as BS
 import           Data.Dynamic
@@ -75,6 +77,7 @@ import Data.Tuple.Extra
 import Data.Unique
 import Development.IDE.Core.Debouncer
 import Development.IDE.GHC.Compat ( NameCacheUpdater(..), upNameCache )
+import Development.IDE.Core.RuleTypes
 import Development.IDE.Core.PositionMapping
 import Development.IDE.Types.Logger hiding (Priority)
 import qualified Development.IDE.Types.Logger as Logger
@@ -347,6 +350,23 @@ getValues state key file = do
             -- and we blow up immediately if the fromJust should fail
             -- (which would be an internal error).
             evaluate (r `seqValue` Just r)
+
+-- Consult the Values hashmap to get a list of all the files we care about
+-- in a project
+-- MP: This may be quite inefficient if the Values table is very big but
+-- simplest implementation first.
+knownFilesIO :: Var Values -> IO (HSet.HashSet NormalizedFilePath)
+knownFilesIO v = do
+  vs <- readVar v
+  return $ HSet.map fst $ HSet.filter (\(_, k) -> k == Key GetModIfaceFromDisk) (HMap.keysSet vs)
+
+knownFiles :: Action (HSet.HashSet NormalizedFilePath)
+knownFiles = do
+  ShakeExtras{state} <- getShakeExtras
+  liftIO $ knownFilesIO state
+
+
+
 
 -- | Seq the result stored in the Shake value. This only
 -- evaluates the value to WHNF not NF. We take care of the latter
@@ -1060,6 +1080,12 @@ instance NFData FileVersion
 vfsVersion :: FileVersion -> Maybe Int
 vfsVersion (VFSVersion i) = Just i
 vfsVersion ModificationTime{} = Nothing
+
+-- | A comparision function where any VFS version is newer than an ondisk version
+newerFileVersion :: FileVersion -> FileVersion -> Bool
+newerFileVersion (VFSVersion i) (VFSVersion j) = i > j
+newerFileVersion (VFSVersion {}) (ModificationTime {}) = True
+newerFileVersion m1 m2 = modificationTime m1 > modificationTime m2
 
 modificationTime :: FileVersion -> Maybe (Int, Int)
 modificationTime VFSVersion{} = Nothing

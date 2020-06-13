@@ -80,8 +80,8 @@ modifyFilesOfInterest state f = do
     OfInterestVar var <- getIdeGlobalState state
     files <- modifyVar var $ pure . dupe . f
     logDebug (ideLogger state) $ "Set files of interest to: " <> T.pack (show $ HashSet.toList files)
-    let das = map (\nfp -> mkDelayedAction "OfInterest" Debug (use GetHieFile nfp)) (HashSet.toList files)
-    shakeRestart state das
+    -- let das = map (\nfp -> mkDelayedAction "OfInterest" Debug (use GetHieFile nfp)) (HashSet.toList files)
+    -- shakeRestart state das
 
 -- | Typecheck all the files of interest.
 --   Could be improved
