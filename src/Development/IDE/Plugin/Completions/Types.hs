@@ -26,7 +26,7 @@ instance Show CompItem where
                    ++ ", importedFrom = " ++ show importedFrom
                    ++ ", thingType = " ++ show (fmap showGhc thingType)
                    ++ ", label = " ++ show label
-                   ++ ", isInfix = " ++ show isInfix 
+                   ++ ", isInfix = " ++ show isInfix
                    ++ ", docs = " ++ show docs
                    ++ " } "
 instance Eq CompItem where

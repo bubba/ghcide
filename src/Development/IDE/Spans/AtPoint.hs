@@ -21,7 +21,6 @@ import Development.IDE.Types.Options
 import Development.IDE.Spans.Common
 
 -- GHC API imports
-import DynFlags
 import FastString
 import Name
 import Outputable hiding ((<>))
@@ -112,7 +111,7 @@ atPoint IdeOptions{} hf dm pos = listToMaybe $ pointCommand hf pos hoverInfo
         prettyName (Right n, dets) = T.unlines $
           wrapHaskell (showName n <> maybe "" (" :: " <> ) (prettyType <$> identType dets))
           : definedAt n
-          : concat (maybeToList (spanDocToMarkdown <$> M.lookup n dm))
+          : maybe mempty spanDocToMarkdown (M.lookup n dm)
         prettyName (Left m,_) = showName m
 
         prettyTypes = map (("_ :: "<>) . prettyType) types
@@ -188,10 +187,3 @@ pointCommand hf pos k =
    sp fs = mkRealSrcSpan (sloc fs) (sloc fs)
    line = _line pos
    cha = _character pos
-
-showName :: Outputable a => a -> T.Text
-showName = T.pack . prettyprint
-  where
-    prettyprint x = renderWithStyle unsafeGlobalDynFlags (ppr x) style
-    style = mkUserStyle unsafeGlobalDynFlags neverQualify AllTheWay
-

@@ -25,6 +25,11 @@ import           FastString
 import SrcLoc
 import Data.Foldable
 import Data.Either
+import GhcMonad
+import System.Directory
+import System.FilePath
+import Packages
+import Name
 
 mkDocMap
   :: GhcMonad m
@@ -54,13 +59,32 @@ getDocumentationTryGhc
 #if MIN_GHC_API_VERSION(8,6,0) && !defined(GHC_LIB)
 getDocumentationTryGhc sources name = do
   res <- catchSrcErrors "docs" $ getDocs name
+  uris <- getUris
   case res of
-    Right (Right (Just docs, _)) -> return $ SpanDocString docs
-    _ -> return $ SpanDocText $ getDocumentation sources name
+    Right (Right (Just docs, _)) -> return $ (SpanDocString docs uris)
+    _ -> return $ (SpanDocText (getDocumentation sources name) uris)
 #else
 getDocumentationTryGhc sources name = do
-  return $ SpanDocText $ getDocumentation sources name
+  uris <- getUris
+  return $ SpanDocText (getDocumentation sources name) uris
 #endif
+  where
+    -- Get the uris to the documentation and source html pages if they exist
+    getUris = do
+      df <- getSessionDynFlags
+      (docFp, srcFp) <-
+        case nameModule_maybe name of
+          Just mod -> liftIO $ do
+            doc <- fmap (fmap T.pack) $ lookupDocHtmlForModule df mod
+            src <- fmap (fmap T.pack) $ lookupSrcHtmlForModule df mod
+            return (doc, src)
+          Nothing -> pure (Nothing, Nothing)
+      let docUri = docFp >>= \fp -> pure $ "file://" <> fp <> "#" <> selector <> showName name
+          srcUri = srcFp >>= \fp -> pure $ "file://" <> fp <> "#" <> showName name
+          selector
+            | isValName name = "v:"
+            | otherwise = "t:"
+      return $ SpanDocUris docUri srcUri
 
 getDocumentation
  :: [ParsedModule] -- ^ All of the possible modules it could be defined in.
@@ -136,3 +160,34 @@ docHeaders = mapMaybe (\(L _ x) -> wrk x)
                             then Just $ T.pack s
                             else Nothing
     _ -> Nothing
+
+-- These are taken from haskell-ide-engine's Haddock plugin
+
+-- | Given a module finds the local @doc/html/Foo-Bar-Baz.html@ page.
+-- An example for a cabal installed module:
+-- @~/.cabal/store/ghc-8.10.1/vctr-0.12.1.2-98e2e861/share/doc/html/Data-Vector-Primitive.html@
+lookupDocHtmlForModule :: DynFlags -> Module -> IO (Maybe FilePath)
+lookupDocHtmlForModule =
+  lookupHtmlForModule (\pkgDocDir modDocName -> pkgDocDir </> modDocName <.> "html")
+
+-- | Given a module finds the hyperlinked source @doc/html/src/Foo.Bar.Baz.html@ page.
+-- An example for a cabal installed module:
+-- @~/.cabal/store/ghc-8.10.1/vctr-0.12.1.2-98e2e861/share/doc/html/src/Data.Vector.Primitive.html@
+lookupSrcHtmlForModule :: DynFlags -> Module -> IO (Maybe FilePath)
+lookupSrcHtmlForModule =
+  lookupHtmlForModule (\pkgDocDir modDocName -> pkgDocDir </> "src" </> modDocName <.> "html")
+
+lookupHtmlForModule :: (FilePath -> FilePath -> FilePath) -> DynFlags -> Module -> IO (Maybe FilePath)
+lookupHtmlForModule mkDocPath df m = do
+  let mfs = go <$> (listToMaybe =<< lookupHtmls df ui)
+  htmls <- filterM doesFileExist (concat . maybeToList $ mfs)
+  return $ listToMaybe htmls
+  where
+    -- The file might use "." or "-" as separator
+    go pkgDocDir = [mkDocPath pkgDocDir mn | mn <- [mndot,mndash]]
+    ui = moduleUnitId m
+    mndash = map (\x -> if x == '.' then '-' else x) mndot
+    mndot = moduleNameString $ moduleName m
+
+lookupHtmls :: DynFlags -> UnitId -> Maybe [FilePath]
+lookupHtmls df ui = haddockHTMLs <$> lookupPackage df ui
