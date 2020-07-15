@@ -1,16 +1,20 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE CPP #-}
 
 {-|
 The logic for setting up a ghcide session by tapping into hie-bios.
 -}
-module Development.IDE.Session (loadSession) where
+module Development.IDE.Session
+#ifndef GHC_LIB
+(loadSession)
+#endif
+where
+
+-- Unfortunately, we cannot use loadSession with ghc-lib since hie-bios uses
+-- the real GHC library and the types are incompatible. Furthermore, when
+-- building with ghc-lib we need to make this Haskell agnostic, so no hie-bios!
+#ifndef GHC_LIB
 
 import Control.Concurrent.Async
 import Control.Concurrent.Extra
@@ -643,3 +647,5 @@ showPackageSetupException (PackageCheckFailed BasePackageAbiMismatch{..}) = unwo
 renderPackageSetupException :: FilePath -> PackageSetupException -> (NormalizedFilePath, ShowDiagnostic, Diagnostic)
 renderPackageSetupException fp e =
     ideErrorWithSource (Just "cradle") (Just DsError) (toNormalizedFilePath' fp) (T.pack $ showPackageSetupException e)
+
+#endif
